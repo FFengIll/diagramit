@@ -1,35 +1,14 @@
-import os
-from contextlib import contextmanager
 from enum import Enum
-from queue import LifoQueue as Stack
+
+from .context import Context
+from .diagram import Diagram
+from .utils import block_generator, line_generator, wrap_puml, output_puml
 
 
-def alias_gen():
-    while 1:
-        yield 'p{}'.format(Context._count)
-        Context._count += 1
-
-
-_alias = alias_gen()
-
-
-class Context():
-    _count = 1
-
-    _context = Stack()
-    _cur_context = None
-
-
-class Sequence():
-    _format = ['png', 'svg', 'txt', 'pdf', None]
+class Sequence(Diagram):
 
     def __init__(self, path=None, format='png', ):
-        self.path = path
-        self.text = []
-        self.ns = []
-        self.es = []
-        self.format = format
-        assert format in self._format
+        super().__init__(path, format)
 
     def __enter__(self):
         Context._context.put_nowait(Context._cur_context)
@@ -46,7 +25,7 @@ class Sequence():
             fd.write(text)
 
         if self.format:
-            os.system('plantuml {} -t{}'.format(self.path, self.format))
+            output_puml(self.path, self.format)
 
     def to_puml(self):
         content = []
@@ -55,23 +34,8 @@ class Sequence():
                 content.append(i)
             else:
                 content.append(i.to_puml())
-        text = '@startuml\n{}\n@enduml'.format('\n'.join(content))
+        text = wrap_puml(content)
         return text
-
-    def add_note(self, p):
-        self.text.append(p)
-
-    def add_node(self, p):
-        self.ns.append(p)
-        self.text.append(p)
-
-    def add_link(self, a: 'Node', b: 'Node', type=None):
-        res = Edge(a, b, type)
-        self.text.append(res)
-        return res
-
-    def add_text(self, text):
-        self.text.append(text)
 
 
 class Edge():
@@ -95,7 +59,7 @@ class Edge():
 class Node():
     def __init__(self, desc, alias=None):
         self.desc = desc
-        self.alias = alias or next(_alias)
+        self.alias = alias or Context.get_alias()
         self.context = Context._cur_context
         self.context.add_node(self)
 
@@ -103,13 +67,13 @@ class Node():
         return 'participant "{}" as {}'.format(self.desc, self.alias)
 
     def __lshift__(self, other: 'Node'):
-        return self.context.add_link(other, self, '->')
+        return self.context.add_link(Edge(other, self, '->'))
 
     def __rshift__(self, other: 'Node'):
-        return self.context.add_link(self, other, '->')
+        return self.context.add_link(Edge(self, other, '->'))
 
     def __sub__(self, other: 'Node'):
-        return self.context.add_link(self, other, '-->')
+        return self.context.add_link(Edge(self, other, '-->'))
 
 
 class NoteWhere(Enum):
@@ -160,28 +124,6 @@ class NoteLeft(_Note):
 class NoteOver(_Note):
     def __init__(self, *args):
         super().__init__(*args, site=NoteWhere.over.value)
-
-
-def block_generator(entry, exit):
-    @contextmanager
-    def inner(desc=''):
-        context = Context._cur_context
-        context.add_text(entry.format(desc))
-        try:
-            yield None
-        finally:
-            context.add_text(exit.format(desc))
-
-    return inner
-
-
-def line_generator(entry, exit):
-    def inner(desc=''):
-        context = Context._cur_context
-        context.add_text(entry.format(desc))
-        context.add_text(exit.format(desc))
-
-    return inner
 
 
 Group = block_generator('group {}', 'end')
