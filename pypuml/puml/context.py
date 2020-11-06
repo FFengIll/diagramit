@@ -1,10 +1,7 @@
 from queue import LifoQueue as Stack
+from .utils import alias_gen
 
 
-def alias_gen():
-    while 1:
-        yield 'p{}'.format(Context._count)
-        Context._count += 1
 
 
 class Context():
