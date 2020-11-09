@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Tutorial Demo</title>
+</head>
+<body>
+<button onclick="download()">download</button>
+<div id="container"/>
+
+<!-- 引入 G6 -->
+<script src="https://gw.alipayobjects.com/os/antv/pkg/_antv.g6-3.7.1/dist/g6.min.js"></script>
+
+<script>
+    console.log(G6.Global.version);
+
+    const data = {
+    {
+        data
+    }
+    }
+    ;
+
+    const width = document.getElementById("container").scrollWidth;
+    const height = document.getElementById("container").scrollHeight || 500;
+    const graph = new G6.Graph({
+        renderer: "svg",
+        container: "container",
+        width,
+        height,
+        // translate the graph to align the canvas's center, support by v3.5.1
+        fitCenter: false,
+        fitView: true,
+        // Set groupByTypes to false to get rendering result with reasonable visual zIndex for combos
+        groupByTypes: false,
+        defaultCombo: {
+            type: "rect",
+            size: [30, 30], // Combo 的最小大小
+            style: {
+                lineWidth: 1,
+            },
+            labelCfg: {
+                refY: 5,
+                position: "top",
+                style: {
+                    fontSize: 12,
+                },
+            },
+        },
+        defaultNode: {
+            type: 'rect',
+        },
+        // layout:{
+        // type: 'dagre',
+        // },
+        modes: {
+            default: [
+                "drag-canvas",
+                "drag-node",
+                "drag-combo",
+                "collapse-expand-combo",
+            ],
+        },
+        comboStateStyles: {
+            // the style configurations for the hover state on the combo
+            hover: {
+                lineWidth: 3,
+            },
+        },
+        nodeStateStyles: {
+            // the hover configurations for the hover state on the node
+            hover: {
+                lineWidth: 3,
+            },
+        },
+    });
+
+    graph.data(data);
+    graph.render();
+
+    graph.on("combo:mouseenter", (evt) => {
+        const {item} = evt;
+        graph.setItemState(item, "hover", true);
+    });
+
+    graph.on("combo:mouseleave", (evt) => {
+        const {item} = evt;
+        graph.setItemState(item, "hover", false);
+    });
+
+    function download() {
+        graph.downloadImage("test", "svg");
+    }
+</script>
+</body>
+</html>
