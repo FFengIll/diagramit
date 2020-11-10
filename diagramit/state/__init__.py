@@ -1,6 +1,6 @@
-from pypuml.puml.context import Context
-from pypuml.puml.diagram import Diagram
-from pypuml.puml.utils import block_generator, wrap_puml, direction
+from diagramit.puml.context import Context
+from diagramit.puml.diagram import Diagram
+from diagramit.puml.utils import block_generator, wrap_puml, direction
 
 
 class State(Diagram):

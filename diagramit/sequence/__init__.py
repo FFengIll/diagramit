@@ -1,6 +1,6 @@
-from pypuml.puml.context import Context
+from diagramit.puml.context import Context
 from .diagram import Diagram
-from pypuml.puml.utils import block_generator, line_generator, wrap_puml
+from diagramit.puml.utils import block_generator, line_generator, wrap_puml
 
 
 class Sequence(Diagram):

@@ -1,5 +1,5 @@
-from pypuml.puml.context import Context, alias_gen
-from pypuml.puml.utils import assert_format, output_puml, desc2alias
+from diagramit.puml.context import Context, alias_gen
+from diagramit.puml.utils import assert_format, output_puml, desc2alias
 
 
 class Diagram():
@@ -28,7 +28,7 @@ class Diagram():
                     self.alias_set.add(alias)
                 return alias
 
-        return next(self._alias_gen)
+        return 'n' + next(self._alias_gen)
 
     def __enter__(self):
         Context._context.put_nowait(Context._cur_context)
@@ -39,18 +39,16 @@ class Diagram():
         Context._cur_context = context
 
         text = self.to_puml()
-        # print(text)
+        print(text)
 
         if self.show:
             print(text)
-        elif self.path:
+        else:
             with open(self.path, 'w') as fd:
                 fd.write(text)
 
             if self.format:
                 output_puml(self.path, self.format)
-
-        return text
 
     def add_note(self, p):
         self.text.append(p)
