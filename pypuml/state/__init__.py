@@ -1,5 +1,5 @@
 from pypuml.puml.context import Context
-from .diagram import Diagram
+from pypuml.puml.diagram import Diagram
 from pypuml.puml.utils import block_generator, wrap_puml, direction
 
 
@@ -90,7 +90,7 @@ StartNode = _EndNode()
 EndNode = _EndNode()
 
 
-class Note(Node):
+class NoteNode(Node):
     def to_puml(self):
         text = 'note "{}" as {}'.format(self.desc, self.alias)
         return text
