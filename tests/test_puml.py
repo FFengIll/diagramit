@@ -1,5 +1,5 @@
 def test_comp():
-    from pypuml.component import Component, Group, Node, Cloud, DB
+    from diagramit.component import Component, Group, Node, Cloud, DB
 
     with Component('output/test_component.puml', format='svg', show=False) as comp:
         with Group('Test'):
@@ -14,8 +14,8 @@ def test_comp():
 
 
 def test_state():
-    from pypuml.puml.note import NoteLink, NoteLeft
-    from pypuml.state import State, Node, StartNode, CompState, EndNode, NoteNode
+    from diagramit.puml.note import NoteLink, NoteLeft
+    from diagramit.state import State, Node, StartNode, CompState, EndNode, NoteNode
 
     with State('output/test_state.puml', format='svg', show=False) as seq:
         a = Node('A')
@@ -41,8 +41,8 @@ def test_state():
 
 
 def test_sequence():
-    from pypuml.puml.note import NoteOver, NoteRight, NoteLeft
-    from pypuml.sequence import Node, Split, Sequence, Active, Group
+    from diagramit.puml.note import NoteOver, NoteRight, NoteLeft
+    from diagramit.sequence import Node, Split, Sequence, Active, Group
     with Sequence('output/test_seq.puml', format='svg', show=True) as seq:
         a = Node('A')
         b = Node('B')
