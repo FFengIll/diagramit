@@ -14,19 +14,32 @@ logger = loguru.logger
 最终根据算法评估要如何布局每个group，从而设置node position。
 """
 
-y_padding_step = 10
 padding = 10
+limit = 8
 
-node_width = 100
-node_height = 30
 
-node_space = padding * 2
-combo_space = padding * 4
-layer_space = padding * 2
+class Space():
+    def __init__(self, x, y):
+        self.x, self.y = x, y
 
-ystep = (node_height + padding * 2) + padding + (padding * 2)
-xstep = node_width + node_space
-inner_ystep = node_height + padding
+
+class Pad():
+    def __init__(self, space, padding):
+        self.top, self.right, self.bottom, self.left = padding
+        self.space: Space = space
+        self.width = 100
+        self.height = 30
+
+
+class CSS():
+    node = Pad(Space(padding, padding), [25, 10, 10, 10])
+    combo = Pad(Space(padding * 4, 0), [25, 10, 10, 10])
+    layer = Pad(Space(padding * 4, padding), [25, 10, 10, 10])
+
+
+ystep = (CSS.node.height + padding + CSS.combo.top) + padding + (padding * 2)
+xstep = CSS.node.width + CSS.node.space.x
+inner_ystep = CSS.node.height + padding
 
 
 class Arch(Diagram):
@@ -57,9 +70,16 @@ class Arch(Diagram):
             layer = self.layers[idx - 1]
             base = layer.y
             raw = layer.raw
-            pad = layer_space + padding * 2 + \
-                  raw * node_height + (raw - 1) * node_space + \
-                  (padding * 2 if len(layer.combos) <= 1 else padding * 3)
+            pad = 0
+            pad += CSS.layer.space.y
+            pad += raw * CSS.node.height + (raw - 1) * CSS.node.space.x
+            if len(layer.combos) > 1:
+                pad += CSS.combo.top + CSS.layer.top
+                pad += CSS.combo.bottom + CSS.layer.bottom
+            else:
+                pad += CSS.combo.top + CSS.layer.top
+                pad += CSS.combo.bottom + CSS.layer.bottom
+
             res = base + pad
             logger.info(res)
         else:
@@ -88,7 +108,7 @@ class Arch(Diagram):
 
     def to_puml(self):
         arch = ArchLayout(self)
-        arch.process()
+        arch.layout()
         res = arch.generate()
         return res
 
@@ -102,16 +122,6 @@ class ArchLayout():
         self.ns = []
         self.cs = []
         self.context: Arch = context
-
-    def get_y_padding(self):
-        self.y_padding += y_padding_step
-        return self.y_padding
-
-    def get_y(self, idx):
-        return self.y + ystep * idx + self.y_padding
-
-    def get_x(self, idx):
-        return self.x
 
     def preprocess(self):
 
@@ -131,20 +141,20 @@ class ArchLayout():
         for l in self.context.layers:
             max_col = max(max_col, l.col)
 
-        if max_col <= 6:
+        if max_col <= limit:
             # 已经足够均衡了，可以直接开始后续步骤
             return
         else:
             # 宽度过分大，需要拆分combo
             for layer in self.context.layers:
-                if layer.col > 6:
+                if layer.col > limit:
                     # 对于比较不均衡的部分，直接拆分
                     for combo in layer.combos:
                         combo.raw += 1
 
             self.preprocess()
 
-    def process(self):
+    def layout(self):
 
         # 首先处理层级，显然，每一层有一个combo，对应需要设置pos y
         # 其次需要处理content，横向扩展，所以需要设置pos x
@@ -181,7 +191,7 @@ class ArchLayout():
             logger.info('layer "{}" width={}', layer, layer.width)
 
             delta = max_width - layer.width
-            if delta:
+            if delta > 0:
                 layer.extend_space(delta)
 
             # if col > 1:
@@ -194,52 +204,38 @@ class ArchLayout():
 
     def layout_combo(self, combo: 'Combo', parent=None):
         for idx, n in enumerate(combo.nodes):
-            n.x = combo.get_node_x(idx) + node_space
+            n.x = combo.get_node_x(idx) + CSS.node.space.x
             n.y = combo.get_node_y(idx)
 
-        res = dict(
-            id=combo.alias,
-            label=combo.desc,
-            y=combo.y,
-        )
-        if combo.x:
-            res['x'] = combo.x
-        return res
-
     def layout_layer(self, layer: 'Layer'):
+        if len(layer.combos) == 0:
+            return
 
-        if len(layer.combos) <= 1:
-            # 注意：对于单层单combo，直接用combo作为这个层级即可
-            for idx, combo in enumerate(layer.combos):
-                combo.x, combo.y = layer.get_combo_x(idx), layer.get_combo_y(None)
-                combo.desc = layer.desc
-                res = self.layout_combo(combo, )
+        # if len(layer.combos) == 1:
+        #     # 注意：对于单层单combo，直接用combo作为这个层级即可
+        #     combo = layer.combos[0]
+        #     if combo.desc and layer.desc:
+        #         pass
+        #     else:
+        #         combo.x, combo.y = layer.get_combo_x(0), layer.get_combo_y(None)
+        #         combo.parent=None
+        #         self.layout_combo(combo, )
+        #         return
 
-                self.cs.append(res)
-        else:
-            # 注意：对于单层多combo，需要额外附加一个parent（或许以后可以去除）
-            res = dict(
-                id=layer.alias,
-                label=layer.desc,
-            )
-            self.cs.append(res)
+        # layout inner combo
+        # 由于可能拆分成多个层级，所以需要妥善构造增量
+        # 对于y轴，（内外）记录并构造每一层的y
+        # 对于x轴，需要内部记录并构造每一层x
 
-            # process inner combo
-            # 由于可能拆分成多个层级，所以需要妥善构造增量
-            # 对于y轴，（内外）记录并构造每一层的y
-            # 对于x轴，需要内部记录并构造每一层x
+        xbase = layer.x
+        ybase = layer.y
+        for _, combo in enumerate(layer.combos):
+            combo.x = xbase
+            combo.y = ybase + CSS.combo.top + CSS.combo.bottom
+            logger.info('{} {} x={}', layer, combo, combo.x)
 
-            xidx = 0
-            for _, combo in enumerate(layer.combos):
-                combo.x = layer.get_combo_x(xidx) + node_space
-                combo.y = layer.get_combo_y(None) + layer_space
-                xidx += combo.col
-
-                res = self.layout_combo(combo)
-
-                if combo.parent:
-                    res['parentId'] = combo.parent.alias
-                self.cs.append(res)
+            xbase += CSS.node.width * combo.col + CSS.node.space.x * (combo.col - 1) + CSS.combo.space.x
+            self.layout_combo(combo)
 
     def generate_node(self, node: 'Node', parent=None):
         res = dict(
@@ -264,37 +260,46 @@ class ArchLayout():
         )
         if combo.x:
             res['x'] = combo.x
+        if combo.padding:
+            res['padding'] = [25, combo.padding + 10, 10, 10]
         return res
 
     def generate_layer(self, layer: 'Layer'):
+        if len(layer.combos) <= 0:
+            return
 
-        if len(layer.combos) <= 1:
-            # 注意：对于单层单combo，直接用combo作为这个层级即可
-            for idx, combo in enumerate(layer.combos):
-                res = self.generate_combo(combo, )
-                self.cs.append(res)
-        else:
-            # 注意：对于单层多combo，需要额外附加一个parent（或许以后可以去除）
-            res = dict(
-                id=layer.alias,
-                label=layer.desc,
-            )
+        # if len(layer.combos) == 1:
+        #     # 注意：对于单层单combo，直接用combo作为这个层级即可
+        #     combo = layer.combos[0]
+        #     if combo.desc and layer.desc:
+        #         pass
+        #     else:
+        #         combo.desc = layer.desc
+        #         res = self.generate_combo(combo, )
+        #         self.cs.append(res)
+        #         return
+
+        # 注意：对于单层多combo，需要额外附加一个parent（或许以后可以去除）
+        res = dict(
+            id=layer.alias,
+            label=layer.desc,
+        )
+        self.cs.append(res)
+
+        # layout inner combo
+        # 由于可能拆分成多个层级，所以需要妥善构造增量
+        # 对于y轴，（内外）记录并构造每一层的y
+        # 对于x轴，需要内部记录并构造每一层x
+
+        xidx = 0
+
+        for cidx, combo in enumerate(layer.combos):
+            xidx += combo.col
+            res = self.generate_combo(combo)
+
+            if combo.parent:
+                res['parentId'] = combo.parent.alias
             self.cs.append(res)
-
-            # process inner combo
-            # 由于可能拆分成多个层级，所以需要妥善构造增量
-            # 对于y轴，（内外）记录并构造每一层的y
-            # 对于x轴，需要内部记录并构造每一层x
-
-            xidx = 0
-
-            for cidx, combo in enumerate(layer.combos):
-                xidx += combo.col
-                res = self.generate_combo(combo)
-
-                if combo.parent:
-                    res['parentId'] = combo.parent.alias
-                self.cs.append(res)
 
     def generate(self):
         """
@@ -307,6 +312,7 @@ class ArchLayout():
         res = dict(nodes=self.ns, combos=self.cs)
         for _, layer in enumerate(self.context.layers):
             self.generate_layer(layer)
+
         return res
 
 
@@ -321,16 +327,40 @@ class Layer():
         self.y = None
 
     def extend_space(self, delta):
+        """
+        扩展空隙，有两种方案
+        1. 左右panding combo
+        2. 在node间扩大space
+        目前使用方案2
+        :param delta:
+        :return:
+        """
         count = 0
+        inner_count = []
         for c in self.combos:
-            count += c.col - 1
-        space = delta / count
+            t = c.col - 1
+            count += t
+            inner_count.append(t)
 
-        idx = 1
-        for c in self.combos:
-            for n in c.nodes[1:]:
-                n.x += space * idx
-                idx += 1
+        # 此时加上combo的数目，加入到combo padding中
+        count += len(self.combos)
+
+        # 理论上不存在
+        if count <= 0:
+            return
+
+        space = delta / count
+        base = 0
+        for combo, count in zip(self.combos, inner_count):
+            # 平移每个node
+            combo.extend_space(space)
+            # 对combo加一个right padding
+            combo.padding = space
+
+            for n in combo.nodes:
+                n.x += base
+
+            base += count * space + space
 
     @cached_property
     def width_legacy(self):
@@ -338,9 +368,9 @@ class Layer():
         cs = len(self.combos)
 
         # 计算边缘，计算combo间space，计算node，计算node间space
-        pad = combo_space * (cs - 1) + col * node_width
+        pad = CSS.combo.space.x * (cs - 1) + col * CSS.node.width
         for c in self.combos:
-            pad += (len(c.nodes) - 1) * node_space
+            pad += (len(c.nodes) - 1) * CSS.node.space.x
 
         return pad
 
@@ -353,24 +383,23 @@ class Layer():
         # 最左点与最右点之间
         first, last = self.combos[0], self.combos[-1]
         left = first.nodes[0].x
-        right = last.nodes[min(last.col - 1, len(last.nodes))].x + node_width
+        right = last.nodes[min(last.col - 1, len(last.nodes))].x + CSS.node.width
 
         cs = len(self.combos)
         # layer 两端
-        padding1 = padding * 2
+        extra1 = CSS.layer.left + CSS.layer.right
         # layer combo 两端
-        space1 = 0 if cs <= 1 else padding * 2
-        # layer combo 之间
-        space2 = 0 if cs <= 1 else (combo_space - padding * 2) * (cs - 1)
+        extra2 = CSS.combo.left + CSS.combo.right
+        # extra2 = CSS.combo.left + CSS.combo.right if cs>1 else 0
 
-        return right - left + padding1 + space1 + space2
+        return right - left + extra1 + extra2
 
     def get_combo_y(self, idx):
         return self.y
 
     def get_combo_x(self, idx):
         if idx > 0:
-            return self.x + xstep * idx + combo_space
+            return self.x + CSS.node.width * idx + CSS.node.space.x * (idx - 1) + CSS.combo.space.x
         else:
             return self.x + xstep * idx
 
@@ -417,6 +446,13 @@ class Combo():
         self.x = None
         self.y = None
         self.raw = 1
+        self.padding = 0
+
+    def extend_space(self, space):
+        col = self.col
+        for idx, n in enumerate(self.nodes):
+            m = idx % col
+            n.x += m * space
 
     @property
     def col(self):
