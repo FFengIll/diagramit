@@ -13,17 +13,17 @@ class NoteWhere(Enum):
 class _Note():
     def __init__(self, *args, site='', no_node=False):
         nodes = set()
-        desc = []
+        label = []
         for i in args:
             if isinstance(i, str):
-                desc.append(i)
+                label.append(i)
             else:
                 nodes.add(i)
 
         if not no_node and len(nodes) <= 0:
             raise Exception('must given node for note')
 
-        self.desc = '\n'.join(desc)
+        self.label = '\n'.join(label)
         self.nodes = nodes
         self.site = site
         self.context = Context._cur_context
@@ -31,13 +31,13 @@ class _Note():
 
     def to_puml(self):
         if self.site == NoteWhere.over:
-            n = ', '.join([n.alias for n in self.nodes])
+            n = ', '.join([n.id for n in self.nodes])
         if self.site == NoteWhere.link:
             n = ''
         else:
-            n = self.nodes.pop().alias
+            n = self.nodes.pop().id
 
-        text = '{} {}\n{}\nend note'.format(self.site.value, n, self.desc)
+        text = '{} {}\n{}\nend note'.format(self.site.value, n, self.label)
         return text
 
 

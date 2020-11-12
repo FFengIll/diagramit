@@ -16,9 +16,9 @@ def alias_gen():
         count += 1
 
 
-def desc2alias(desc: str):
+def desc2alias(label: str):
     res = ''
-    for ch in desc:
+    for ch in label:
         if ch.isalpha():
             res += ch
 
@@ -45,13 +45,13 @@ def block_generator(entry, exit):
     from .context import Context
 
     @contextmanager
-    def inner(desc=''):
+    def inner(label=''):
         context = Context._cur_context
-        context.add_text(entry.format(desc))
+        context.add_text(entry.format(label))
         try:
             yield None
         finally:
-            context.add_text(exit.format(desc))
+            context.add_text(exit.format(label))
 
     return inner
 
@@ -59,9 +59,9 @@ def block_generator(entry, exit):
 def line_generator(entry, exit):
     from .context import Context
 
-    def inner(desc=''):
+    def inner(label=''):
         context = Context._cur_context
-        context.add_text(entry.format(desc))
-        context.add_text(exit.format(desc))
+        context.add_text(entry.format(label))
+        context.add_text(exit.format(label))
 
     return inner

@@ -22,12 +22,12 @@ class Edge():
     def __init__(self, a, b, type=''):
         self.start = a
         self.end = b
-        self.desc = ''
+        self.label = ''
         self.type = [type] if type else []
         self.direction = ''
 
     def __or__(self, other: str):
-        self.desc = other
+        self.label = other
         return self
 
     def __gt__(self, other):
@@ -42,23 +42,23 @@ class Edge():
             modifier = '-{}[{}]->'.format(self.direction, ','.join(self.type))
         else:
             modifier = '-->'
-        text = '{}{}{}'.format(self.start.alias, modifier, self.end.alias)
-        if self.desc:
-            text += ' : {}'.format(self.desc)
+        text = '{}{}{}'.format(self.start.id, modifier, self.end.id)
+        if self.label:
+            text += ' : {}'.format(self.label)
         return text
 
 
 class Node():
-    def __init__(self, desc, *args, alias=None):
-        self.desc = desc
+    def __init__(self, label, *args, alias=None):
+        self.label = label
         self.fields = args
         self.context = Context._cur_context
         self.context.add_node(self)
-        self.alias = self.context.get_alias(alias or desc)
+        self.id = self.context._rand_id()
 
     def to_puml(self):
-        base = 'state "{}" as {}'.format(self.desc, self.alias)
-        fields = ['{} : {}'.format(self.alias, i) for i in self.fields]
+        base = 'state "{}" as {}'.format(self.label, self.id)
+        fields = ['{} : {}'.format(self.id, i) for i in self.fields]
         res = '{}\n{}'.format(base, '\n'.join(fields))
         return res
 
@@ -86,17 +86,17 @@ class _EndNode(Node):
         return self
 
 
-StartNode = _EndNode()
-EndNode = _EndNode()
+StartNode = _EndNode
+TerminateNode = _EndNode
 
 
 class NoteNode(Node):
     def to_puml(self):
-        text = 'note "{}" as {}'.format(self.desc, self.alias)
+        text = 'note "{}" as {}'.format(self.label, self.id)
         return text
 
 
-def CompState(desc: str):
-    desc = desc.replace(' ', '_')
+def CompState(label: str):
+    label = label.replace(' ', '_')
     inner = block_generator('state {} {{', '}}')
-    return inner(desc)
+    return inner(label)
