@@ -1,9 +1,8 @@
-from ..g6.diagram import Diagram, Context
+from functools import cached_property
 from math import ceil
 from typing import *
 
 import loguru
-from functools import cached_property
 
 from ..g6.diagram import Diagram, Context
 
@@ -30,10 +29,15 @@ class Pad():
         self.width = 100
         self.height = 30
 
+    @property
+    def padding(self):
+        return [self.top, self.right, self.bottom, self.left]
+
 
 class CSS():
     node = Pad(Space(padding, padding), [25, 10, 10, 10])
-    combo = Pad(Space(padding * 4, 0), [25, 10, 10, 10])
+    combo = Pad(Space(padding * 4, 0), [10, 10, 10, 10])
+    label_combo = Pad(Space(padding * 4, 0), [25, 10, 10, 10])
     layer = Pad(Space(padding * 4, padding), [25, 10, 10, 10])
 
 
@@ -101,7 +105,7 @@ class Arch(Diagram):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        res = super(Arch, self).__exit__()
+        res = super(Arch, self).__exit__(exc_type, exc_val, exc_tb)
 
     def add_combo(self, c):
         self.layers.append(c)
@@ -214,7 +218,7 @@ class ArchLayout():
         # if len(layer.combos) == 1:
         #     # 注意：对于单层单combo，直接用combo作为这个层级即可
         #     combo = layer.combos[0]
-        #     if combo.desc and layer.desc:
+        #     if combo.label and layer.label:
         #         pass
         #     else:
         #         combo.x, combo.y = layer.get_combo_x(0), layer.get_combo_y(None)
@@ -240,11 +244,13 @@ class ArchLayout():
     def generate_node(self, node: 'Node', parent=None):
         res = dict(
             id=node.alias,
-            comboId=parent.alias,
-            label=node.desc,
+            comboId=parent.id,
+            label=node.label,
             x=node.x,
             y=node.y
         )
+        res['style'] = node._attrs
+
         self.ns.append(res)
 
         return res
@@ -254,14 +260,18 @@ class ArchLayout():
             self.generate_node(n, combo)
 
         res = dict(
-            id=combo.alias,
-            label=combo.desc,
+            id=combo.id,
+            label=combo.label,
             y=combo.y,
+            padding=combo.padding
         )
         if combo.x:
             res['x'] = combo.x
-        if combo.padding:
-            res['padding'] = [25, combo.padding + 10, 10, 10]
+        if combo.parent:
+            res['parentId'] = combo.parent.id
+
+        res['style'] = combo._attrs
+
         return res
 
     def generate_layer(self, layer: 'Layer'):
@@ -271,19 +281,21 @@ class ArchLayout():
         # if len(layer.combos) == 1:
         #     # 注意：对于单层单combo，直接用combo作为这个层级即可
         #     combo = layer.combos[0]
-        #     if combo.desc and layer.desc:
+        #     if combo.label and layer.label:
         #         pass
         #     else:
-        #         combo.desc = layer.desc
+        #         combo.label = layer.label
         #         res = self.generate_combo(combo, )
         #         self.cs.append(res)
         #         return
 
         # 注意：对于单层多combo，需要额外附加一个parent（或许以后可以去除）
         res = dict(
-            id=layer.alias,
-            label=layer.desc,
+            id=layer.id,
+            label=layer.label,
         )
+        res['style'] = layer._attrs
+
         self.cs.append(res)
 
         # layout inner combo
@@ -297,8 +309,6 @@ class ArchLayout():
             xidx += combo.col
             res = self.generate_combo(combo)
 
-            if combo.parent:
-                res['parentId'] = combo.parent.alias
             self.cs.append(res)
 
     def generate(self):
@@ -317,14 +327,16 @@ class ArchLayout():
 
 
 class Layer():
-    def __init__(self, desc='', *args, alias=None):
+    def __init__(self, label='', alias=None, **kwargs):
         self.context: Arch = Context._cur_context
         self.context.add_layer(self)
-        self.desc = desc
-        self.alias = 'layer_' + self.context.get_alias(alias or desc)
+        self.label = label
+        self.id = 'layer_' + self.context.get_alias(alias or label)
         self.combos: List[Combo] = []
         self.x = None
         self.y = None
+
+        self._attrs = kwargs
 
     def extend_space(self, delta):
         """
@@ -338,12 +350,9 @@ class Layer():
         count = 0
         inner_count = []
         for c in self.combos:
-            t = c.col - 1
+            t = c.col
             count += t
             inner_count.append(t)
-
-        # 此时加上combo的数目，加入到combo padding中
-        count += len(self.combos)
 
         # 理论上不存在
         if count <= 0:
@@ -355,12 +364,12 @@ class Layer():
             # 平移每个node
             combo.extend_space(space)
             # 对combo加一个right padding
-            combo.padding = space
+            combo.padding[1] = space + padding
 
             for n in combo.nodes:
                 n.x += base
 
-            base += count * space + space
+            base += count * space
 
     @cached_property
     def width_legacy(self):
@@ -418,15 +427,19 @@ class Layer():
         return 0
 
     def __str__(self):
-        return self.alias
+        return self.id
 
     def __repr__(self):
         return str(self)
 
-    def __call__(self, *args, desc=''):
-        c = Combo(parent=self, desc=desc)
+    def __call__(self, *args, label=''):
+        c = Combo(label, parent=self, )
         for i in args:
-            n = Node(i, c)
+            if isinstance(i, Node):
+                n = i
+                n.parent = c
+            else:
+                n = Node(i, c)
             c.nodes.append(n)
         self.combos.append(c)
 
@@ -438,15 +451,21 @@ class Layer():
 
 
 class Combo():
-    def __init__(self, parent=None, alias=None, desc=''):
-        self.desc = desc
+    def __init__(self, label, parent=None, **kwargs):
+        self.label = label
         self.parent = parent
-        self.alias = 'combo_' + Context._cur_context.get_alias(alias or desc)
+        self.id = 'combo_' + Context._rand_id()
         self.nodes = []
         self.x = None
         self.y = None
         self.raw = 1
-        self.padding = 0
+
+        if label:
+            self.padding = CSS.label_combo.padding
+        else:
+            self.padding = CSS.combo.padding
+
+        self._attrs = kwargs
 
     def extend_space(self, space):
         col = self.col
@@ -477,10 +496,12 @@ class Combo():
 
 
 class Node():
-    def __init__(self, desc, parent: 'Combo' = None, alias=None):
+    def __init__(self, label, parent: 'Combo' = None, **kwargs):
         self.parent = parent
 
-        self.desc = desc
-        self.alias = 'node' + Context._cur_context.get_alias(alias or desc)
+        self.label = label
+        self.alias = 'node_' + Context._rand_id()
         self.x = None
         self.y = None
+
+        self._attrs = kwargs

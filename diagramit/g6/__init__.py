@@ -1,8 +1,8 @@
-import tempfile
 from urllib.parse import unquote
-from path import Path
+
 import loguru
 from jinja2 import PackageLoader, Environment
+from path import Path
 from requests_file import FileAdapter
 from requests_html import HTMLSession, Element
 
@@ -11,11 +11,12 @@ session = HTMLSession()
 session.mount('file://', FileAdapter())
 
 # 使用包加载器，限定包结构
-env = Environment(loader=PackageLoader('pypuml', 'templates'))  # 创建一个包加载器对象
+env = Environment(loader=PackageLoader('diagramit', 'templates'))  # 创建一个包加载器对象
 
 
 class Template:
     arch = 'arch.template.html'
+    linkarch = 'link.arch.template.html'
 
 
 svg_attr_pad = dict(

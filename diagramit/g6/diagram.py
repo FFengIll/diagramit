@@ -33,8 +33,12 @@ class Diagram():
     def __enter__(self):
         Context._context.put_nowait(Context._cur_context)
         Context._cur_context = self
+        return self
 
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_val:
+            raise exc_val
+
         context = Context._context.get_nowait()
         Context._cur_context = context
 
