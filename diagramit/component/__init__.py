@@ -1,8 +1,6 @@
-from enum import Enum
-
 from ..puml.context import Context
 from ..puml.diagram import Diagram
-from ..puml.utils import block_generator, line_generator, wrap_puml, output_puml
+from ..puml.utils import block_generator, wrap_puml
 
 
 class Component(Diagram):
@@ -25,29 +23,29 @@ class Edge():
     def __init__(self, a, b, type='->'):
         self.start = a
         self.end = b
-        self.desc = ''
+        self.label = ''
         self.type = type
 
     def __or__(self, other: str):
-        self.desc = other
+        self.label = other
         return self
 
     def to_puml(self):
-        text = '{}{}{}'.format(self.start.alias, self.type, self.end.alias)
-        if self.desc:
-            text += ':{}'.format(self.desc)
+        text = '{}{}{}'.format(self.start.id, self.type, self.end.id)
+        if self.label:
+            text += ':{}'.format(self.label)
         return text
 
 
 class Node():
-    def __init__(self, desc, alias=None):
-        self.desc = desc.replace('\n', '\\n')
+    def __init__(self, label, alias=None):
+        self.label = label.replace('\n', '\\n')
         self.context = Context._cur_context
         self.context.add_node(self)
-        self.alias = self.context.get_alias(alias or desc)
+        self.id = self.context.get_alias(alias or label)
 
     def to_puml(self):
-        return '[{}] as {}'.format(self.desc, self.alias)
+        return '[{}] as {}'.format(self.label, self.id)
 
     def __lshift__(self, other: 'Node'):
         return self.context.add_link(Edge(other, self, '->'))

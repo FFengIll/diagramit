@@ -1,3 +1,5 @@
+import uuid
+
 from diagramit.puml.context import Context, alias_gen
 from diagramit.puml.utils import assert_format, output_puml, desc2alias
 
@@ -15,6 +17,10 @@ class Diagram():
 
         self.alias_set = set()
         self._alias_gen = alias_gen()
+
+    @staticmethod
+    def _rand_id():
+        return uuid.uuid4().hex
 
     def get_alias(self, alias=None):
         if alias:
