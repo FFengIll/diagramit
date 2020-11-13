@@ -15,6 +15,7 @@ logger = loguru.logger
 
 padding = 10
 limit = 8
+"#E5F5FD", "#EBF3E7", "#ECE8F6", "#FDF7E3"
 
 
 class Space():
@@ -247,9 +248,10 @@ class ArchLayout():
             comboId=parent.id,
             label=node.label,
             x=node.x,
-            y=node.y
+            y=node.y,
+            style=node.style,
         )
-        res['style'] = node._attrs
+        res['style'].update(node._attrs)
 
         self.ns.append(res)
 
@@ -263,14 +265,15 @@ class ArchLayout():
             id=combo.id,
             label=combo.label,
             y=combo.y,
-            padding=combo.padding
+            padding=combo.padding,
+            style=combo.style,
         )
         if combo.x:
             res['x'] = combo.x
         if combo.parent:
             res['parentId'] = combo.parent.id
 
-        res['style'] = combo._attrs
+        res['style'].update(combo._attrs)
 
         return res
 
@@ -293,8 +296,9 @@ class ArchLayout():
         res = dict(
             id=layer.id,
             label=layer.label,
+            style=layer.style,
         )
-        res['style'] = layer._attrs
+        res['style'].update(layer._attrs)
 
         self.cs.append(res)
 
@@ -327,6 +331,12 @@ class ArchLayout():
 
 
 class Layer():
+    @property
+    def style(self):
+        return dict(
+            fill='#E5F5FD'
+        )
+
     def __init__(self, label='', alias=None, **kwargs):
         self.context: Arch = Context._cur_context
         self.context.add_layer(self)
@@ -451,6 +461,13 @@ class Layer():
 
 
 class Combo():
+
+    @property
+    def style(self):
+        return dict(
+            fill='#EBF3E7'
+        )
+
     def __init__(self, label, parent=None, **kwargs):
         self.label = label
         self.parent = parent
@@ -496,6 +513,12 @@ class Combo():
 
 
 class Node():
+    @property
+    def style(self):
+        return dict(
+            fill='#C6E5FF'
+        )
+
     def __init__(self, label, parent: 'Combo' = None, **kwargs):
         self.parent = parent
 

@@ -34,17 +34,38 @@
             style: {
                 lineWidth: 1,
             },
-            padding:[25,10,10,10],
+            padding: [25, 10, 10, 10],
             labelCfg: {
                 refY: 5,
                 position: "top",
                 style: {
-                    fontSize: 12,
+                    fontSize: 14,
                 },
             },
         },
         defaultNode: {
             type: 'rect',
+            labelCfg: {
+                style: {
+                    fontSize: 14
+                }
+            },
+            style: {
+                lineWidth: 1,
+            },
+        },
+        defaultEdge: {
+            // type:'quadratic',
+            type: 'line',
+            style: {
+                stroke: '#000',
+                endArrow: true,
+            },
+            labelCfg: {
+                // refY: 5,
+                //    position:'middle',
+                //  autoRotate:'true',
+            }
         },
         // layout:{
         // type: 'dagre',
