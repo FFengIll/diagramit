@@ -1,4 +1,4 @@
-from diagramit.puml.context import Context, alias_gen
+from diagramit.puml.diagram import Context, alias_gen
 from diagramit.puml.utils import assert_format, output_puml, desc2alias
 
 
