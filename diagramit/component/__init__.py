@@ -1,5 +1,4 @@
-from ..puml.context import Context
-from ..puml.diagram import Diagram
+from ..puml.diagram import Diagram, Context
 from ..puml.utils import block_generator, wrap_puml
 
 

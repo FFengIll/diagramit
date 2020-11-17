@@ -1,4 +1,4 @@
-from diagramit.puml.context import Context
+from diagramit.puml.diagram import Context
 from diagramit.puml.diagram import Diagram
 from diagramit.puml.utils import block_generator, wrap_puml, direction
 

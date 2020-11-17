@@ -1,6 +1,6 @@
 from enum import Enum
 
-from .context import Context
+from .diagram import Context
 
 
 class NoteWhere(Enum):
@@ -20,8 +20,8 @@ class _Note():
             else:
                 nodes.add(i)
 
-        if not no_node and len(nodes) <= 0:
-            raise Exception('must given node for note')
+        # if not no_node and len(nodes) <= 0:
+        #     raise Exception('must given node for note')
 
         self.label = '\n'.join(label)
         self.nodes = nodes
@@ -35,7 +35,12 @@ class _Note():
         if self.site == NoteWhere.link:
             n = ''
         else:
-            n = self.nodes.pop().id
+            if len(self.nodes) > 0:
+                n = self.nodes.pop().id
+            else:
+                label = self.label.replace('\n', '\\n')
+                where = self.site.value.split('of')[0]
+                return '{}:{}'.format(where, label)
 
         text = '{} {}\n{}\nend note'.format(self.site.value, n, self.label)
         return text

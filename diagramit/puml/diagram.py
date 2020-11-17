@@ -1,10 +1,41 @@
 import uuid
+from queue import LifoQueue as Stack
 
-from diagramit.puml.context import Context, alias_gen
+import loguru
+
 from diagramit.puml.utils import assert_format, output_puml, desc2alias
+from .utils import alias_gen
+
+logger = loguru.logger
 
 
-class Diagram():
+class Context():
+    _count = 1
+    _context = Stack()
+    _cur_context = None
+    _alias = alias_gen()
+    top_context = None
+
+    @staticmethod
+    def _rand_id():
+        return uuid.uuid4().hex
+
+    @staticmethod
+    def _rand_node_id():
+        return 'N_' + uuid.uuid4().hex
+
+    @staticmethod
+    def get_alias():
+        return next(Context._alias)
+
+    @staticmethod
+    def make_negative():
+        from .diagram import FakeDiagram
+        if Context._cur_context is None:
+            Context._cur_context = FakeDiagram()
+
+
+class Base():
     def __init__(self, path=None, format='png', show=False, **kwargs):
         self.path = path
         self.text = []
@@ -16,11 +47,35 @@ class Diagram():
         self.show = show
 
         self.alias_set = set()
-        self._alias_gen = alias_gen()
+        self._alias_gen = self._rand_id()
 
     @staticmethod
     def _rand_id():
         return uuid.uuid4().hex
+
+    def add_note(self, p):
+        self.text.append(p)
+
+    def add_node(self, p):
+        self.ns.append(p)
+        self.text.append(p)
+
+    def add_link(self, edge):
+        self.text.append(edge)
+        return edge
+
+    def add_text(self, text):
+        self.text.append(text)
+
+    def to_puml(self):
+        raise NotImplementedError
+
+
+class FakeDiagram(Base):
+    pass
+
+
+class Diagram(Base):
 
     def get_alias(self, alias=None):
         if alias:
@@ -54,21 +109,8 @@ class Diagram():
                 fd.write(text)
 
             if self.format:
-                output_puml(self.path, self.format)
-
-    def add_note(self, p):
-        self.text.append(p)
-
-    def add_node(self, p):
-        self.ns.append(p)
-        self.text.append(p)
-
-    def add_link(self, edge):
-        self.text.append(edge)
-        return edge
-
-    def add_text(self, text):
-        self.text.append(text)
-
-    def to_puml(self):
-        raise NotImplementedError
+                try:
+                    output_puml(self.path, self.format)
+                except Exception as e:
+                    logger.exception(e)
+                    logger.error('dump {} to {} error', self.path, self.format)
