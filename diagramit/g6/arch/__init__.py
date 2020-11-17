@@ -4,7 +4,7 @@ from typing import *
 
 import loguru
 
-from ..g6.diagram import Diagram, Context
+from diagramit.g6.diagram import Diagram, Context
 
 logger = loguru.logger
 """

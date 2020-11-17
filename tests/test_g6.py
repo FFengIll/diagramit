@@ -1,10 +1,16 @@
 from pprint import pprint
 
+from colour import Color
+
 from diagramit.g6 import Helper, Template
 
 
+def test_template():
+    pass
+
+
 def test_arch1():
-    from diagramit.arch import Arch, Layer
+    from diagramit.g6.arch import Arch, Layer
     with Arch() as a:
         with Layer('combo1') as g:
             g('1', '2', '3', '4')
@@ -20,7 +26,7 @@ def test_arch1():
 
 
 def test_arch2():
-    from diagramit.arch import Arch, Layer
+    from diagramit.g6.arch import Arch, Layer
     with Arch() as a:
         with Layer('combo1') as g:
             g('1', '2', '3', '4')
@@ -37,15 +43,18 @@ def test_arch2():
 
 
 def test_arch3():
-    from diagramit.arch import Arch, Layer
+    from diagramit.g6.arch import Arch, Layer, Node
+    grey = Color('grey').get_hex()
+    purple = Color('Purple').get_hex()
+
     with Arch() as a:
-        with Layer('combo0') as g:
-            g(*['graph'] * 10)
-            g(*['code'] * 10)
         with Layer('combo1') as g:
+            g(Node('color', fill=purple), )
             g('binary', 'apk', 'cpp', 'java')
         with Layer('combo2') as g:
             g('androguard', 'ida', 'tree-sitter', 'binary ninja')
+            with Layer('inner') as inner:
+                inner('test')
         with Layer('combo3') as g:
             g(*['cfg'] * 5)
             g(*['dfg'] * 5)

@@ -1,5 +1,5 @@
-from ..puml.diagram import Diagram, Context
-from ..puml.utils import block_generator, wrap_puml
+from diagramit.puml.diagram import Diagram, Context
+from diagramit.puml.utils import block_generator, wrap_puml
 
 
 class Component(Diagram):

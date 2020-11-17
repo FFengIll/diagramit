@@ -1,7 +1,7 @@
 from urllib.parse import unquote
 
 import loguru
-from jinja2 import PackageLoader, Environment
+from jinja2 import Environment, FileSystemLoader
 from path import Path
 from requests_file import FileAdapter
 from requests_html import HTMLSession, Element
@@ -11,7 +11,8 @@ session = HTMLSession()
 session.mount('file://', FileAdapter())
 
 # 使用包加载器，限定包结构
-env = Environment(loader=PackageLoader('diagramit', 'templates'))  # 创建一个包加载器对象
+folder = Path(__package__).dirname()
+env = Environment(loader=FileSystemLoader(str(folder), 'templates'))  # 创建一个包加载器对象
 
 
 class Template:
