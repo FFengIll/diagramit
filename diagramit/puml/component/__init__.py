@@ -1,11 +1,19 @@
-from diagramit.puml.diagram import Diagram, Context
+from diagramit.puml.diagram import PumlDiagram, BaseNode, BaseEdge
 from diagramit.puml.utils import block_generator, wrap_puml
 
 
-class Component(Diagram):
+class ComponentDiagram(PumlDiagram):
 
     def __init__(self, path=None, format='png', **kwargs):
         super().__init__(path, format, **kwargs)
+        self.Edge = Edge
+
+        self.op_map = {
+            '>>': '->',
+            '<<': '<-',
+            '-': '--',
+            # '**': '',
+        }
 
     def to_puml(self):
         content = []
@@ -18,10 +26,10 @@ class Component(Diagram):
         return text
 
 
-class Edge():
+class Edge(BaseEdge):
     def __init__(self, a, b, type='->'):
-        self.start = a
-        self.end = b
+        super(Edge, self).__init__(a, b, type=type)
+
         self.label = ''
         self.type = type
 
@@ -30,33 +38,20 @@ class Edge():
         return self
 
     def to_puml(self):
-        text = '{}{}{}'.format(self.start.id, self.type, self.end.id)
+        text = '{}{}{}'.format(self.source.id, self.type, self.target.id)
         if self.label:
             text += ':{}'.format(self.label)
         return text
 
 
-class Node():
-    def __init__(self, label, alias=None):
-        self.label = label.replace('\n', '\\n')
-        self.context = Context._cur_context
-        self.context.add_node(self)
-        self.id = self.context.get_alias(alias or label)
+class Node(BaseNode):
+    def __init__(self, label, *args):
+        super(Node, self).__init__(label, *args)
 
     def to_puml(self):
         return '[{}] as {}'.format(self.label, self.id)
 
-    def __lshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(other, self, '->'))
 
-    def __rshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, '->'))
-
-    def __sub__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, '-->'))
-
-
-Group = block_generator('package "{}" {{', '}}')
-Package = Group
+Package = block_generator('package "{}" {{', '}}')
 Cloud = block_generator('cloud {{', '}}')
 DB = block_generator('database "{}" {{', '}}')

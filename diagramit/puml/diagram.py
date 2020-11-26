@@ -4,6 +4,7 @@ from queue import LifoQueue as Stack
 import loguru
 
 from diagramit.puml.utils import assert_format, output_puml, desc2alias
+from diagramit.puml.utils import direction
 from .utils import alias_gen
 
 logger = loguru.logger
@@ -30,24 +31,33 @@ class Context():
 
     @staticmethod
     def make_negative():
-        from .diagram import FakeDiagram
         if Context._cur_context is None:
-            Context._cur_context = FakeDiagram()
+            Context._cur_context = FakePumlDiagram()
 
 
-class Base():
-    def __init__(self, path=None, format='png', show=False, **kwargs):
+class PumlBase():
+    def __init__(self, path=None, format='png', show=False, export=True, output=False, **kwargs):
         self.path = path
         self.text = []
         self.ns = []
         self.es = []
         self.format = format
+        self.output = output
         assert_format(format)
 
         self.show = show
+        self.export = export
 
         self.alias_set = set()
         self._alias_gen = self._rand_id()
+
+        self.Edge = None
+        self.op_map = {
+            '>>': '',
+            '<<': '',
+            '-': '',
+            '**': '',
+        }
 
     @staticmethod
     def _rand_id():
@@ -67,15 +77,21 @@ class Base():
     def add_text(self, text):
         self.text.append(text)
 
+    def make_edge(self, source, target, type='', **kwargs):
+        if type:
+            type = self.op_map.get(type, None)
+            assert type is not None
+        return self.add_link(self.Edge(source, target, **kwargs))
+
     def to_puml(self):
         raise NotImplementedError
 
 
-class FakeDiagram(Base):
+class FakePumlDiagram(PumlBase):
     pass
 
 
-class Diagram(Base):
+class PumlDiagram(PumlBase):
 
     def get_alias(self, alias=None):
         if alias:
@@ -94,6 +110,7 @@ class Diagram(Base):
     def __enter__(self):
         Context._context.put_nowait(Context._cur_context)
         Context._cur_context = self
+        Context.top_context = self
 
     def __exit__(self, *args):
         context = Context._context.get_nowait()
@@ -105,12 +122,95 @@ class Diagram(Base):
         if self.show:
             print(text)
         else:
-            with open(self.path, 'w') as fd:
-                fd.write(text)
+            print(text)
 
-            if self.format:
-                try:
-                    output_puml(self.path, self.format)
-                except Exception as e:
-                    logger.exception(e)
-                    logger.error('dump {} to {} error', self.path, self.format)
+            if self.export:
+                with open(self.path, 'w') as fd:
+                    fd.write(text)
+
+                if self.format and self.output:
+                    try:
+                        output_puml(self.path, self.format)
+                    except Exception as e:
+                        logger.exception(e)
+                        logger.error('dump {} to {} error', self.path, self.format)
+
+
+class BaseEdge():
+    def __init__(self, a, b, type=''):
+        self.source = a
+        self.target = b
+        self.label = ''
+        self.type = [type] if type else []
+        self.direction = ''
+        self.context: PumlBase = None
+
+    def __or__(self, other: str):
+        self.label = other
+        return self
+
+    def __gt__(self, other):
+        if other in direction:
+            self.direction = other
+        else:
+            self.type.append(other)
+        return self
+
+    def __lshift__(self, other: 'Node'):
+        node = self.target
+        return node.context.make_edge(other, node, '<<')
+
+    def __rshift__(self, other: 'Node'):
+        node = self.target
+        return node.context.make_edge(node, other, '>>')
+
+    def __sub__(self, other: 'Node'):
+        node = self.target
+        return node.context.make_edge(node, other, '-')
+
+    def __pow__(self, power, modulo=None):
+        node = self.target
+        return node.context.make_edge(node, power, '**')
+
+    def to_puml(self):
+        text = 'Rel({},{},"{}")'.format(self.source.id, self.target.id, self.label)
+        return text
+
+
+class BaseNode():
+    def __init__(self, label, *args, alias=None):
+        self.label = label.replace('\n', '\\n')
+        extra = '\\n'.join(args)
+        if extra:
+            self.label += '\\n' + extra
+        self.context = Context._cur_context
+        self.context.add_node(self)
+        self.diagram = Context.top_context
+        self.id = self.context._rand_id()
+
+        self.desc = args
+        self._color = ''
+
+    def color(self, color):
+        self._color = color
+        return self
+
+    def refresh_context(self, context):
+        self.context = Context._cur_context
+        self.context.add_node(self)
+
+    def to_puml(self) -> str:
+        pass
+
+    def __lshift__(self, other: 'BaseNode'):
+        self.context.make_edge(other, self, '>>')
+        return other
+
+    def __rshift__(self, other: 'BaseNode'):
+        return self.context.make_edge(self, other, '<<')
+
+    def __sub__(self, other: 'BaseNode'):
+        return self.context.make_edge(self, other, '-')
+
+    def __pow__(self, power, modulo=None):
+        return self.context.make_edge(self, power, '**')

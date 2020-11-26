@@ -1,20 +1,27 @@
-from diagramit.puml.diagram import Context
-from diagramit.puml.diagram import Diagram
+from diagramit.puml.diagram import PumlDiagram, BaseNode, BaseEdge
 from diagramit.puml.note import NoteLink, NoteLeft, NoteRight, NoteOver
 from diagramit.puml.utils import block_generator, line_generator, wrap_puml
 
 __all__ = [
-    'Sequence',
+    'SequenceDiagram',
     'NoteLeft', 'NoteRight', 'NoteLink', 'NoteOver',
     'Actor', 'Participant', 'DB', 'Collection',
     'Active', 'Split', 'Loop', 'Group', 'Box'
 ]
 
 
-class Sequence(Diagram):
+class SequenceDiagram(PumlDiagram):
 
     def __init__(self, path=None, format='png', **kwargs):
         super().__init__(path, format, **kwargs)
+        self.Edge = Edge
+
+        self.op_map = {
+            '>>': '->',
+            '<<': '->',
+            '-': '',
+            '**': '',
+        }
 
     def to_puml(self):
         content = []
@@ -27,10 +34,10 @@ class Sequence(Diagram):
         return text
 
 
-class Edge():
+class Edge(BaseEdge):
     def __init__(self, a, b, type='->'):
-        self.start = a
-        self.end = b
+        super(Edge, self).__init__(a, b, type=type)
+
         self.label = []
         self.type = type
 
@@ -39,38 +46,28 @@ class Edge():
         return self
 
     def to_puml(self):
-        text = '{}{}{}'.format(self.start.id, self.type, self.end.id)
+        text = '{}{}{}'.format(self.source.id, self.type, self.target.id)
         label = '\\n'.join(self.label)
         if label:
             text += ':{}'.format(label)
         return text
 
 
-class Node():
-    def __init__(self, label, *args, alias=None, type='participant'):
-        self.label = label.replace('\n', '\\n')
-        extra = '\\n'.join(args)
-        if extra:
-            self.label += '\\n' + extra
-        self.context = Context._cur_context
-        self.context.add_node(self)
-        self.id = self.context._rand_id()
+class Node(BaseNode):
+    def __init__(self, label, *args, type='participant'):
+        super(Node, self).__init__(label, *args)
         self.type = type
 
     def to_puml(self):
         return '{} "{}" as {}'.format(self.type, self.label, self.id)
 
-    def __lshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(other, self, '->'))
-
-    def __rshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, '->'))
-
     def __sub__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, '-->'))
+        # FIXME: here is a trick
+        self.diagram.add_link(self.diagram.Edge(self, other, '->'))
+        return self.diagram.add_link(self.diagram.Edge(other, self, '-->'))
 
 
-def NodeGen(type):
+def NodeHelper(type):
     def inner(*args, **kwargs):
         return Node(*args, **kwargs, type=type)
 
@@ -78,11 +75,11 @@ def NodeGen(type):
 
 
 # participant, e.g. a module
-Participant = NodeGen('participant')
+Participant = NodeHelper('participant')
 # Actor, e.g. a user
-Actor = NodeGen('actor')
-DB = NodeGen('database')
-Collection = NodeGen('collections')
+Actor = NodeHelper('actor')
+DB = NodeHelper('database')
+Collection = NodeHelper('collections')
 
 # group of some procedure
 Group = block_generator('group {}', 'end')
