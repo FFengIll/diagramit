@@ -1,14 +1,34 @@
-from diagramit.puml.diagram import Context
-from diagramit.puml.diagram import Diagram
+from diagramit.puml.diagram import PumlDiagram, BaseNode, BaseEdge
+from diagramit.puml.note import NoteLeft, NoteRight
 from diagramit.puml.utils import block_generator, wrap_puml, direction
 
+__all__ = [
+    'NoteLeft', 'NoteRight',
+    'StateDiagram',
+    'CompState', 'Empty',
+    'StartNode', 'Node', 'NoteNode', 'TerminateNode'
+]
 
-class State(Diagram):
+
+class StateDiagram(PumlDiagram):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.simple = kwargs.get('simple', True)
+        self.Edge = Edge
+
+        self.op_map = {
+            '>>': '',
+            '<<': '',
+            '-': 'dashed',
+            '**': 'dotted',
+        }
 
     def to_puml(self):
         content = []
+        content.append('allowmixing')
+        if self.simple:
+            content.append('hide empty description')
+
         for i in self.text:
             if isinstance(i, str):
                 content.append(i)
@@ -18,10 +38,10 @@ class State(Diagram):
         return text
 
 
-class Edge():
+class Edge(BaseEdge):
     def __init__(self, a, b, type=''):
-        self.start = a
-        self.end = b
+        super(Edge, self).__init__(a, b, type=type)
+
         self.label = ''
         self.type = [type] if type else []
         self.direction = ''
@@ -42,37 +62,25 @@ class Edge():
             modifier = '-{}[{}]->'.format(self.direction, ','.join(self.type))
         else:
             modifier = '-->'
-        text = '{}{}{}'.format(self.start.id, modifier, self.end.id)
+        text = '{}{}{}'.format(self.source.id, modifier, self.target.id)
         if self.label:
             text += ' : {}'.format(self.label)
         return text
 
 
-class Node():
+class Node(BaseNode):
     def __init__(self, label, *args, alias=None):
-        self.label = label
+        super(Node, self).__init__(label, *args)
+
         self.fields = args
-        self.context = Context._cur_context
-        self.context.add_node(self)
-        self.id = self.context._rand_id()
 
     def to_puml(self):
         base = 'state "{}" as {}'.format(self.label, self.id)
+        if self._color:
+            base = '{} {}'.format(base, self._color)
         fields = ['{} : {}'.format(self.id, i) for i in self.fields]
         res = '{}\n{}'.format(base, '\n'.join(fields))
         return res
-
-    def __lshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(other, self, ''))
-
-    def __rshift__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, ''))
-
-    def __sub__(self, other: 'Node'):
-        return self.context.add_link(Edge(self, other, 'dashed'))
-
-    def __pow__(self, power, modulo=None):
-        return self.context.add_link(Edge(self, power, 'dotted'))
 
 
 class _EndNode(Node):
@@ -94,6 +102,11 @@ class NoteNode(Node):
     def to_puml(self):
         text = 'note "{}" as {}'.format(self.label, self.id)
         return text
+
+
+Empty = block_generator('', '')
+Package = block_generator('package "{}" {{', '}}')
+Box = block_generator('rectangle "{}" {{', '}}')
 
 
 def CompState(label: str):
