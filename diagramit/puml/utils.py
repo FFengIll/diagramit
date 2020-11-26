@@ -50,7 +50,7 @@ def block_generator(entry, exit):
         if label:
             text = entry.format(*label)
         else:
-            text = entry
+            text = entry.format('')
         context.add_text(text)
         try:
             yield None
@@ -75,3 +75,10 @@ def line_generator(entry, exit):
         context.add_text(exit.format(label))
 
     return inner
+
+
+def reuse(*args):
+    from .diagram import Context, BaseNode
+    for i in args:
+        i: 'BaseNode'
+        i.refresh_context(Context._cur_context)

@@ -1,20 +1,14 @@
 import uuid
 
+# from diagramit.puml.diagram import Node,Edge
 from diagramit.puml.diagram import Context
-from diagramit.puml.diagram import Diagram
+from diagramit.puml.diagram import PumlDiagram
 from diagramit.puml.utils import block_generator, wrap_puml, direction
-
-
-def reuse(*args):
-    for i in args:
-        i: 'Node'
-        i.refresh_context(Context._cur_context)
-
 
 Context.make_negative()
 
 
-class C4Diagram(Diagram):
+class C4Diagram(PumlDiagram):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
