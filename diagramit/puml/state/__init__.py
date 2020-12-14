@@ -21,11 +21,14 @@ class StateDiagram(PumlDiagram):
             '<<': '',
             '-': 'dashed',
             '**': 'dotted',
+            '.': 'dotted'
+
         }
 
     def to_puml(self):
         content = []
-        content.append('allowmixing')
+        if self.mix:
+            content.append('allowmixing')
         if self.simple:
             content.append('hide empty description')
 
@@ -69,10 +72,9 @@ class Edge(BaseEdge):
 
 
 class Node(BaseNode):
-    def __init__(self, label, *args, alias=None):
+    def __init__(self, label='', *args, fields=[], alias=None):
         super(Node, self).__init__(label, *args)
-
-        self.fields = args
+        self.fields = fields
 
     def to_puml(self):
         base = 'state "{}" as {}'.format(self.label, self.id)
@@ -105,8 +107,18 @@ class NoteNode(Node):
 
 
 Empty = block_generator('', '')
-Package = block_generator('package "{}" {{', '}}')
-Box = block_generator('rectangle "{}" {{', '}}')
+
+
+def Package(label):
+    from ..diagram import Context
+    Context.diagram.mix = True
+    return block_generator('package "{}" {{', '}}')(label)
+
+
+def Box(label):
+    from ..diagram import Context
+    Context.diagram.mix = True
+    return block_generator('rectangle "{}" {{', '}}')(label)
 
 
 def CompState(label: str):

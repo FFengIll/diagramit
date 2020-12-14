@@ -1,5 +1,12 @@
 from diagramit.puml.diagram import PumlDiagram, BaseNode, BaseEdge
 from diagramit.puml.utils import block_generator, wrap_puml
+from ..note import *
+
+__all__ = [
+    'NoteLeft', 'NoteRight',
+    'ComponentDiagram',
+    'Package', 'Node',
+]
 
 
 class ComponentDiagram(PumlDiagram):
